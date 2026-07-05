@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { overflow: hidden; background: #000; cursor: none; }
+  canvas { display: block; }
+
+  #speed-control {
+    position: fixed;
+    right: 24px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+  }
+  #speed-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 120px;
+    height: 2px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 2px;
+    outline: none;
+    transform: rotate(-90deg);
+    cursor: none;
+  }
+  #speed-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.08);
+    cursor: none;
+  }
+
+  .brand {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    padding-top: clamp(36px, 6vh, 70px);
+    z-index: 20;
+    pointer-events: none;
+  }
+  .brand a {
+    text-decoration: none;
+    pointer-events: all;
+    cursor: none;
+  }
+  .brand-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 300;
+    font-size: clamp(16px, 2.6vw, 32px);
+    letter-spacing: 0.35em;
+    color: transparent;
+    background: linear-gradient(135deg, #d4b896 0%, #f0e0c8 25%, #c9a87c 50%, #e8d4b8 75%, #b8956a 100%);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    animation: shimmer 8s ease-in-out infinite;
+    text-transform: lowercase;
+    line-height: 1;
+    user-select: none;
+    transition: letter-spacing 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+                filter 0.6s ease;
+    filter: drop-shadow(0 0 20px rgba(201, 168, 124, 0.06));
+  }
+  .brand-name:hover {
+    letter-spacing: 0.5em;
+    filter: drop-shadow(0 0 35px rgba(201, 168, 124, 0.15));
+  }
+  @keyframes shimmer {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+  .brand-line {
+    display: block;
+    margin: 10px auto 0;
+    width: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(201,168,124,0.35), transparent);
+    transition: width 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+  .brand a:hover .brand-line { width: 120%; }
+
+  .hand-cursor {
+    position: fixed;
+    pointer-events: none;
+    z-index: 9999;
+    width: 40px;
+    height: 40px;
+    transform: translate(-50%, -50%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    filter: drop-shadow(0 0 6px rgba(255,255,255,0.15));
+  }
+  .hand-cursor.visible { opacity: 1; }
+  .hand-cursor.pressing svg { transform: scale(0.88); }
+  .hand-cursor svg { width: 100%; height: 100%; transition: transform 0.15s ease; }
+  .cursor-ring {
+    position: fixed;
+    pointer-events: none;
+    z-index: 9998;
+    width: 60px;
+    height: 60px;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    opacity: 0;
+    transition: opacity 0.4s ease, width 0.3s ease, height 0.3s ease, border-color 0.3s ease;
+  }
+  .cursor-ring.visible { opacity: 1; }
+  .cursor-ring.pressing { width: 44px; height: 44px; border-color: rgba(255,255,255,0.2); }
+  .cursor-ring.on-link { width: 50px; height: 50px; border-color: rgba(201,168,124,0.35); }
+  .touch-hint {
+    position: fixed;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 1.5s ease;
+    pointer-events: none;
+  }
+  .touch-hint.show { opacity: 1; }
+  .touch-hint.fade { opacity: 0; }
+
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&display=swap');
+</style>
+</head>
+<body>
+
+<div class="brand">
+  <a href="https://sandeepkakunuri.github.io/sandeepkakunuri/?utm_source=ig&utm_medium=social&utm_content=link_in_bio&fbclid=PAZXh0bgNhZW0CMTEAc3J0YwZhcHBfaWQPOTM2NjE5NzQzMzkyNDU5AAGnCNHc-0sqL4Hj-_JppatubQAdRcN5we5lX9DW_9wVJg5-VXBocivid9zi3c8_aem_H_li3_UwwfhbZ_RUiWdb-w" target="_blank" rel="noopener noreferrer">
+    <div class="brand-name">sandeepkakunuri</div>
+    <span class="brand-line"></span>
+  </a>
+</div>
+
+<div class="hand-cursor" id="handCursor">
+  <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M32 8C30.5 8 29.2 8.8 28.5 10L28 10V10L22 28H16C14.3 28 13 29.3 13 31C13 32.7 14.3 34 16 34H22L20 52C19.7 54.2 21.5 56.2 23.7 56.2C25.9 56.2 27.7 54.2 27.4 52L28 42H36L36.6 52C36.9 54.2 38.7 56.2 40.9 56.2C43.1 56.2 44.9 54.2 44.6 52L42 34H48C49.7 34 51 32.7 51 31C51 29.3 49.7 28 48 28H42L36 10C35.3 8.8 34 8 32.5 8H32Z" fill="rgba(255,255,255,0.85)" stroke="rgba(255,255,255,0.3)" stroke-width="0.5"/>
+    <path d="M32 12L26.5 28" stroke="rgba(0,0,0,0.15)" stroke-width="1" stroke-linecap="round"/>
+    <path d="M37.5 28L32 12" stroke="rgba(0,0,0,0.15)" stroke-width="1" stroke-linecap="round"/>
+    <ellipse cx="32" cy="31" rx="8" ry="2" fill="rgba(0,0,0,0.08)"/>
+  </svg>
+</div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<div class="touch-hint" id="touchHint">
+  <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+    <circle cx="18" cy="18" r="16" stroke="rgba(255,255,255,0.15)" stroke-width="1" fill="none"/>
+    <circle cx="18" cy="18" r="4" fill="rgba(255,255,255,0.12)"/>
+  </svg>
+</div>
+
+<div id="speed-control">
+  <input type="range" id="speed-slider" min="0" max="300" value="100">
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.163.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.163.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+const handCursor = document.getElementById('handCursor');
+const cursorRing = document.getElementById('cursorRing');
+const touchHint = document.getElementById('touchHint');
+const brandLink = document.querySelector('.brand a');
+
+let cursorX = -100, cursorY = -100, ringX = -100, ringY = -100;
+let cursorVisible = false, isPressed = false;
+const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+function showCursor(x, y) {
+  cursorX = x; cursorY = y;
+  if (!cursorVisible) { cursorVisible = true; handCursor.classList.add('visible'); cursorRing.classList.add('visible'); }
+}
+function hideCursor() {
+  cursorVisible = false;
+  handCursor.classList.remove('visible','pressing');
+  cursorRing.classList.remove('visible','pressing','on-link');
+}
+function setPressed(s) { isPressed = s; handCursor.classList.toggle('pressing', s); cursorRing.classList.toggle('pressing', s); }
+
+document.addEventListener('mousemove', e => showCursor(e.clientX, e.clientY));
+document.addEventListener('mouseleave', hideCursor);
+document.addEventListener('mousedown', () => setPressed(true));
+document.addEventListener('mouseup', () => setPressed(false));
+brandLink.addEventListener('mouseenter', () => cursorRing.classList.add('on-link'));
+brandLink.addEventListener('mouseleave', () => cursorRing.classList.remove('on-link'));
+document.addEventListener('touchstart', e => { showCursor(e.touches[0].clientX, e.touches[0].clientY); setPressed(true); }, { passive: true });
+document.addEventListener('touchmove', e => { showCursor(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+document.addEventListener('touchend', () => { setPressed(false); setTimeout(hideCursor, 600); });
+
+(function updateCursor() {
+  requestAnimationFrame(updateCursor);
+  handCursor.style.left = cursorX + 'px';
+  handCursor.style.top = cursorY + 'px';
+  ringX += (cursorX - ringX) * 0.12;
+  ringY += (cursorY - ringY) * 0.12;
+  cursorRing.style.left = ringX + 'px';
+  cursorRing.style.top = ringY + 'px';
+})();
+
+if (isMobile) {
+  setTimeout(() => touchHint.classList.add('show'), 800);
+  setTimeout(() => touchHint.classList.add('fade'), 3500);
+}
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 2000);
+camera.position.set(30, 25, 50);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.8;
+document.body.appendChild(renderer.domElement);
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+composer.addPass(new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.2, 0.5, 0.3));
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+controls.minDistance = 8;
+controls.maxDistance = 150;
+controls.maxPolarAngle = Math.PI * 0.85;
+if (isMobile) controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
+
+let speedMult = 1;
+document.getElementById('speed-slider').addEventListener('input', e => { speedMult = e.target.value / 100; });
+
+function createStars(count, size, spread) {
+  const geo = new THREE.BufferGeometry();
+  const pos = new Float32Array(count * 3), col = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) {
+    const i3 = i * 3, b = 0.3 + Math.random() * 0.7, t = Math.random();
+    pos[i3] = (Math.random()-.5)*spread; pos[i3+1] = (Math.random()-.5)*spread; pos[i3+2] = (Math.random()-.5)*spread;
+    col[i3] = b*(t>.8?1:.85); col[i3+1] = b*(t>.9?.85:.9); col[i3+2] = b;
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  return new THREE.Points(geo, new THREE.PointsMaterial({ size, sizeAttenuation: true, vertexColors: true, transparent: true, opacity: 0.9 }));
+}
+scene.add(createStars(3000, 0.15, 400));
+scene.add(createStars(1500, 0.3, 300));
+scene.add(createStars(500, 0.5, 200));
+
+[0x110022, 0x001122, 0x0a0a1a, 0x0d0015].forEach(c => {
+  for (let j = 0; j < 3; j++) {
+    const m = new THREE.Mesh(
+      new THREE.PlaneGeometry(60+Math.random()*80, 60+Math.random()*80),
+      new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: .035+Math.random()*.035, side: THREE.DoubleSide, depthWrite: false })
+    );
+    m.position.set((Math.random()-.5)*200,(Math.random()-.5)*100,(Math.random()-.5)*200);
+    m.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, 0);
+    scene.add(m);
+  }
+});
+
+const N = `
+  vec3 mod289(vec3 x){return x-floor(x*(1./289.))*289.;}
+  vec2 mod289v2(vec2 x){return x-floor(x*(1./289.))*289.;}
+  vec3 permute(vec3 x){return mod289(((x*34.)+1.)*x);}
+  float snoise(vec2 v){
+    const vec4 C=vec4(.211324865405187,.366025403784439,-.577350269189626,.024390243902439);
+    vec2 i=floor(v+dot(v,C.yy)),x0=v-i+dot(i,C.xx);
+    vec2 i1=(x0.x>x0.y)?vec2(1.,0.):vec2(0.,1.);
+    vec4 x12=x0.xyxy+C.xxzz;x12.xy-=i1;i=mod289v2(i);
+    vec3 p=permute(permute(i.y+vec3(0.,i1.y,1.))+i.x+vec3(0.,i1.x,1.));
+    vec3 m=max(.5-vec3(dot(x0,x0),dot(x12.xy,x12.xy),dot(x12.zw,x12.zw)),0.);
+    m=m*m;m=m*m;vec3 x_=2.*fract(p*C.www)-1.;vec3 h=abs(x_)-.5;vec3 ox=floor(x_+.5);vec3 a0=x_-ox;
+    m*=1.79284291400159-.85373472095314*(a0*a0+h*h);
+    vec3 g;g.x=a0.x*x0.x+h.x*x0.y;g.yz=a0.yz*x12.xz+h.yz*x12.yw;return 130.*dot(m,g);
+  }`;
+
+const pV = `varying vec3 vN,vV;varying vec2 vUv;varying vec3 vW;void main(){vUv=uv;vN=normalize(normalMatrix*normal);vec4 w=modelMatrix*vec4(position,1.);vW=w.xyz;vV=normalize(cameraPosition-w.xyz);gl_Position=projectionMatrix*viewMatrix*w;}`;
+const pF = `uniform vec3 uRC;uniform float uRP,uT,uNS;varying vec3 vN,vV,vW;varying vec2 vUv;${N}void main(){float n1=snoise(vUv*uNS+uT*.02)*.5+.5;float n2=snoise(vUv*uNS*2.5-uT*.015)*.5+.5;float n3=snoise(vUv*uNS*5.+uT*.01)*.5+.5;float n=n1*.5+n2*.3+n3*.2;vec3 b=vec3(.01+n*.03,.01+n*.025,.015+n*.035);float r=1.-max(dot(vN,vV),0.);r=pow(r,uRP);vec3 rl=uRC*r*.8;float d=pow(max(dot(vN,normalize(-vW)),0.),4.)*.06;gl_FragColor=vec4(b+rl+vec3(d),1.);}`;
+const gV = `varying vec3 vN,vV;void main(){vN=normalize(normalMatrix*normal);vec4 w=modelMatrix*vec4(position,1.);vV=normalize(cameraPosition-w.xyz);gl_Position=projectionMatrix*viewMatrix*w;}`;
+const gF = `uniform vec3 uGC;uniform float uI;varying vec3 vN,vV;void main(){float r=1.-max(dot(vN,vV),0.);gl_FragColor=vec4(uGC,pow(r,3.)*uI);}`;
+
+const sunGroup = new THREE.Group();
+const sunMat = new THREE.ShaderMaterial({
+  uniforms: { uTime: { value: 0 } },
+  vertexShader: `varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+  fragmentShader: `uniform float uTime;varying vec2 vUv;${N}void main(){float n=snoise(vUv*6.+uTime*.3)*.5+.5;float n2=snoise(vUv*12.-uTime*.2)*.5+.5;vec3 c=mix(vec3(.8,.2,.05),vec3(1.,.55,.15),n);c=mix(c,vec3(1.,.95,.8),n2*.5);c*=1.5;gl_FragColor=vec4(c,1.);}`
+});
+sunGroup.add(new THREE.Mesh(new THREE.SphereGeometry(2.2, 64, 64), sunMat));
+[0,1,2].forEach(i => sunGroup.add(new THREE.Mesh(new THREE.SphereGeometry(2.5+i*.8,32,32), new THREE.ShaderMaterial({
+  uniforms: { uGC:{value:new THREE.Color(0xff8833)}, uI:{value:.3-i*.08} },
+  vertexShader: gV, fragmentShader: gF, transparent: true, side: THREE.BackSide, depthWrite: false
+}))));
+sunGroup.add(new THREE.PointLight(0xffaa66, 3, 200, 1.5));
+scene.add(new THREE.AmbientLight(0x111122, 0.3));
+scene.add(sunGroup);
+
+const C = [
+  { r:.6, d:7, s:4.1, rs:.02, rim:0xff6633, glow:0xff4400 },
+  { r:1.1, d:11, s:2.6, rs:.015, rim:0xff8844, glow:0xff6622 },
+  { r:1.4, d:16, s:1.7, rs:.025, rim:0x44aaff, glow:0x2288dd },
+  { r:.5, d:20, s:1.2, rs:.03, rim:0xcc4444, glow:0xaa2222 },
+  { r:3.2, d:28, s:.7, rs:.04, rim:0xffaa55, glow:0xdd8833, ring:true, rc:0x222222 },
+  { r:2.4, d:37, s:.4, rs:.035, rim:0x66ddaa, glow:0x44bb88, ring:true, rc:0x1a1a1a },
+  { r:1.8, d:46, s:.25, rs:.03, rim:0x8866ff, glow:0x6644dd, ring:true, rc:0x151515 },
+];
+
+const planets = [];
+C.forEach((cfg, idx) => {
+  const group = new THREE.Group();
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { uRC:{value:new THREE.Color(cfg.rim)}, uRP:{value:2.5+cfg.r*.3}, uT:{value:0}, uNS:{value:4+Math.random()*6} },
+    vertexShader: pV, fragmentShader: pF
+  });
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(Math.max(.1,cfg.r),64,64), mat);
+  group.add(mesh);
+  group.add(new THREE.Mesh(new THREE.SphereGeometry(Math.max(.1,cfg.r*1.15),32,32), new THREE.ShaderMaterial({
+    uniforms: { uGC:{value:new THREE.Color(cfg.glow)}, uI:{value:.5} },
+    vertexShader: gV, fragmentShader: gF, transparent: true, side: THREE.BackSide, depthWrite: false
+  })));
+  if (cfg.ring) {
+    const inner=Math.max(.1,cfg.r*1.4), outer=Math.max(inner+.1,cfg.r*2.4);
+    const rm = new THREE.Mesh(new THREE.RingGeometry(inner,outer,128), new THREE.ShaderMaterial({
+      uniforms: { uRingColor:{value:new THREE.Color(cfg.rc)}, uRimColor:{value:new THREE.Color(cfg.rim)} },
+      vertexShader:`varying vec2 vUv;varying vec3 vW;void main(){vUv=uv;vW=(modelMatrix*vec4(position,1.)).xyz;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+      fragmentShader:`uniform vec3 uRingColor,uRimColor;varying vec2 vUv;varying vec3 vW;void main(){float t=vUv.x;float b=sin(t*60.)*.3+.7;b*=sin(t*23.+1.5)*.2+.8;float e=smoothstep(0.,.15,t)*smoothstep(1.,.85,t);vec3 vd=normalize(cameraPosition-vW);float rf=pow(abs(dot(normalize(vec3(vW.x,0.,vW.z)),vd)),.5)*.4+.6;vec3 c=uRingColor*b*e*rf+uRimColor*(1.-rf)*e*.15;gl_FragColor=vec4(c,e*.7*b);}`,
+      transparent: true, side: THREE.DoubleSide, depthWrite: false
+    }));
+    rm.rotation.x = Math.PI*.45+idx*.15; rm.rotation.z = idx*.3;
+    group.add(rm);
+  }
+  const oP=[]; for(let i=0;i<=256;i++){const a=(i/256)*Math.PI*2;oP.push(Math.cos(a)*cfg.d,0,Math.sin(a)*cfg.d);}
+  const oG=new THREE.BufferGeometry(); oG.setAttribute('position',new THREE.Float32BufferAttribute(oP,3));
+  scene.add(new THREE.Line(oG, new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:.04})));
+  const angle = Math.random()*Math.PI*2;
+  group.position.x = Math.cos(angle)*cfg.d; group.position.z = Math.sin(angle)*cfg.d;
+  scene.add(group);
+  const planet = { group, mesh, mat, cfg, angle, moons: [] };
+  if (cfg.ring) {
+    const mc = 2+Math.floor(Math.random()*3);
+    for (let m=0; m<mc; m++) {
+      const mr=Math.max(.05,cfg.r*.12+Math.random()*cfg.r*.1), md=cfg.r*1.8+m*cfg.r*.6;
+      const mm = new THREE.ShaderMaterial({
+        uniforms:{ uRC:{value:new THREE.Color(cfg.rim).multiplyScalar(.5)}, uRP:{value:2}, uT:{value:0}, uNS:{value:8} },
+        vertexShader: pV, fragmentShader: pF
+      });
+      const mmesh = new THREE.Mesh(new THREE.SphereGeometry(mr,16,16), mm);
+      group.add(mmesh);
+      planet.moons.push({ mesh:mmesh, mat:mm, dist:md, speed:1.5+Math.random()*2, angle:Math.random()*Math.PI*2, tilt:(Math.random()-.5)*.5 });
+    }
+  }
+  planets.push(planet);
+});
+
+const dG=new THREE.BufferGeometry(), dP=new Float32Array(6000);
+for(let i=0;i<2000;i++){const d=5+Math.random()*48,a=Math.random()*Math.PI*2;dP[i*3]=Math.cos(a)*d;dP[i*3+1]=(Math.random()-.5)*2;dP[i*3+2]=Math.sin(a)*d;}
+dG.setAttribute('position',new THREE.BufferAttribute(dP,3));
+const dust=new THREE.Points(dG,new THREE.PointsMaterial({color:0x334455,size:.05,transparent:true,opacity:.3,sizeAttenuation:true,depthWrite:false}));
+scene.add(dust);
+
+const clock=new THREE.Clock();
+(function animate(){
+  requestAnimationFrame(animate);
+  const t=clock.getElapsedTime();
+  sunMat.uniforms.uTime.value=t;
+  planets.forEach(p=>{
+    p.angle+=p.cfg.s*.003*speedMult;
+    p.group.position.x=Math.cos(p.angle)*p.cfg.d;
+    p.group.position.z=Math.sin(p.angle)*p.cfg.d;
+    p.mesh.rotation.y+=p.cfg.rs*speedMult;
+    p.mat.uniforms.uT.value=t;
+    p.moons.forEach(m=>{
+      m.angle+=m.speed*.02*speedMult;
+      m.mesh.position.x=Math.cos(m.angle)*m.dist;
+      m.mesh.position.y=Math.sin(m.angle)*m.dist*Math.sin(m.tilt);
+      m.mesh.position.z=Math.sin(m.angle)*m.dist*Math.cos(m.tilt);
+      m.mat.uniforms.uT.value=t;
+    });
+  });
+  dust.rotation.y+=.0001*speedMult;
+  controls.update();
+  composer.render();
+})();
+
+window.addEventListener('resize',()=>{
+  camera.aspect=window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth,window.innerHeight);
+  composer.setSize(window.innerWidth,window.innerHeight);
+});
+</script>
+</body>
+</html>
